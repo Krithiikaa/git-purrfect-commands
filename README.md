@@ -1,5 +1,33 @@
 <div align="center">
 
+  <!-- 📄 PDF Reference Notebook -->
+  <a href="Krithi_Git_Commands.pdf">
+    <img src="https://media.giphy.com/media/WoWm8YzFQJg5i/giphy.gif" width="100" alt="Cat Reading Book"/>
+  </a>
+
+  <br/>
+
+  <a href="Krithi_Git_Commands.pdf">
+    <img src="https://img.shields.io/badge/📄_Krithi's_Git_Notebook-View_PDF-E8A0BF?style=for-the-badge&logo=adobeacrobatreader&logoColor=white" alt="View PDF"/>
+  </a>
+
+  <br/>
+  <sub>✨ <i>My handcrafted Git commands reference — click above to view or download!</i> ✨</sub>
+
+  <br/><br/>
+
+</div>
+
+<div align="center">
+
+  <img src="https://user-images.githubusercontent.com/74038190/212284100-561aa473-3905-4a80-b561-0d28506553ee.gif" width="700" alt="divider"/>
+
+</div>
+
+<br/>
+
+<div align="center">
+
   <img src="https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif" width="160" alt="Typing Cat"/>
 
   # 🎀 git-purrfect-commands 🎀
