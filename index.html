@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Git Commands — Krithika's Notebook</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&family=Lora:ital,wght@0,400;1,400&display=swap"
+    rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #FAF8F4;
+      --paper: #FDFCF9;
+      --dot: #D6CCBB;
+      --ink: #1C1C2E;
+      --ink-light: #4A4A6A;
+      --spiral: #3A3A5C;
+      --copper: #B87333;
+      --copper-light: #D4956A;
+      --code-bg: #EDEBE6;
+      --code-border: #C8C2B5;
+      --tag-branch: #E8F4E8;
+      --tag-branch-text: #2D6A2D;
+      --tag-undo: #FEF0E8;
+      --tag-undo-text: #8B3A1A;
+      --tag-remote: #E8EEF8;
+      --tag-remote-text: #1A3A7A;
+      --tag-basic: #F5F0FF;
+      --tag-basic-text: #4A1A8A;
+      --sidebar-w: 260px;
+      --spiral-w: 54px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Lora', Georgia, serif;
+      font-size: 15px;
+      line-height: 1.75;
+      display: flex;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── DOTTED BACKGROUND ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle, var(--dot) 1.2px, transparent 1.2px);
+      background-size: 22px 22px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── GIT GRAPH SPINE ── */
+    .spiral-spine {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: var(--spiral-w);
+      height: 100%;
+      background: #13121A;
+      z-index: 100;
+      overflow: hidden;
+      box-shadow: 3px 0 18px rgba(0, 0, 0, 0.22);
+    }
+
+    .spiral-spine canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      position: fixed;
+      left: var(--spiral-w);
+      top: 0;
+      width: var(--sidebar-w);
+      height: 100%;
+      background: rgba(253, 252, 249, 0.95);
+      backdrop-filter: blur(6px);
+      border-right: 1px solid var(--dot);
+      z-index: 90;
+      overflow-y: auto;
+      padding: 28px 0 28px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: var(--dot);
+      border-radius: 2px;
+    }
+
+    .sidebar-brand {
+      padding: 0 20px 24px 20px;
+      border-bottom: 1px dashed var(--dot);
+      margin-bottom: 16px;
+    }
+
+    .sidebar-brand .nb-label {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--copper);
+      margin-bottom: 6px;
+    }
+
+    .sidebar-brand h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.25;
+    }
+
+    .sidebar-brand .sub {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 10px;
+      color: var(--ink-light);
+      margin-top: 4px;
+      font-weight: 400;
+    }
+
+    .sidebar-section-title {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--copper);
+      padding: 0 20px 8px 20px;
+    }
+
+    .sidebar-nav {
+      list-style: none;
+      padding: 0 8px;
+      flex: 1;
+    }
+
+    .sidebar-nav li a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      text-decoration: none;
+      color: var(--ink-light);
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11.5px;
+      font-weight: 500;
+      border-radius: 6px;
+      transition: background 0.2s, color 0.2s;
+      line-height: 1.35;
+    }
+
+    .sidebar-nav li a:hover,
+    .sidebar-nav li a.active {
+      background: rgba(184, 115, 51, 0.08);
+      color: var(--copper);
+    }
+
+    .sidebar-nav li a .num {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--dot);
+      min-width: 16px;
+    }
+
+    .sidebar-divider {
+      margin: 10px 20px;
+      border: none;
+      border-top: 1px dashed var(--dot);
+    }
+
+    /* ── MAIN CONTENT ── */
+    .main {
+      margin-left: calc(var(--spiral-w) + var(--sidebar-w));
+      flex: 1;
+      padding: 52px 56px 80px 52px;
+      max-width: 860px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── PAGE HEADER ── */
+    .page-header {
+      margin-bottom: 52px;
+      padding-bottom: 28px;
+      border-bottom: 2px solid var(--dot);
+      position: relative;
+    }
+
+    .page-header .eyebrow {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--copper);
+      margin-bottom: 10px;
+    }
+
+    .page-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 46px;
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--ink);
+      letter-spacing: -0.5px;
+    }
+
+    .page-header h1 em {
+      font-style: italic;
+      color: var(--copper);
+    }
+
+    .page-header .tagline {
+      margin-top: 14px;
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 15px;
+      color: var(--ink-light);
+    }
+
+    .page-header .meta-row {
+      display: flex;
+      gap: 20px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .meta-chip {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: var(--code-bg);
+      color: var(--ink-light);
+      border: 1px solid var(--code-border);
+    }
+
+    /* ── SECTION GROUPS ── */
+    .section-group {
+      margin-bottom: 56px;
+    }
+
+    .group-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--copper);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .group-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--dot), transparent);
+    }
+
+    /* ── COMMAND CARDS ── */
+    .cmd-card {
+      background: var(--paper);
+      border: 1px solid var(--dot);
+      border-radius: 10px;
+      padding: 24px 28px;
+      margin-bottom: 20px;
+      position: relative;
+      transition: box-shadow 0.25s, transform 0.2s;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+
+    .cmd-card:hover {
+      box-shadow: 0 6px 24px rgba(184, 115, 51, 0.1), 0 2px 6px rgba(0, 0, 0, 0.06);
+      transform: translateY(-1px);
+    }
+
+    .cmd-card .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .cmd-number {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--copper-light);
+      letter-spacing: 0.1em;
+    }
+
+    .cmd-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+
+    .cmd-desc {
+      font-family: 'Lora', serif;
+      font-size: 13.5px;
+      color: var(--ink-light);
+      line-height: 1.65;
+      margin-bottom: 14px;
+    }
+
+    .cmd-tag {
+      display: inline-block;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 12px;
+      margin-right: 6px;
+    }
+
+    .tag-basic {
+      background: var(--tag-basic);
+      color: var(--tag-basic-text);
+    }
+
+    .tag-branch {
+      background: var(--tag-branch);
+      color: var(--tag-branch-text);
+    }
+
+    .tag-remote {
+      background: var(--tag-remote);
+      color: var(--tag-remote-text);
+    }
+
+    .tag-undo {
+      background: var(--tag-undo);
+      color: var(--tag-undo-text);
+    }
+
+    .tag-config {
+      background: #FFF8E8;
+      color: #7A5A00;
+    }
+
+    .tag-collab {
+      background: #E8F8FF;
+      color: #006080;
+    }
+
+    /* ── WHERE TO RUN ── */
+    .where-run {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 9.5px;
+      font-weight: 600;
+      color: var(--ink-light);
+      background: rgba(0, 0, 0, 0.04);
+      border: 1px solid var(--dot);
+      border-radius: 8px;
+      padding: 3px 10px;
+    }
+
+    .where-run::before {
+      content: '📂';
+      font-size: 10px;
+    }
+
+    /* ── CODE BLOCKS ── */
+    .code-block-wrap {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 8px;
+      margin: 12px 0 8px 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 14px;
+      background: rgba(0, 0, 0, 0.04);
+      border-bottom: 1px solid var(--code-border);
+    }
+
+    .code-lang {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-light);
+    }
+
+    .copy-btn {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--copper);
+      background: none;
+      border: 1px solid var(--copper-light);
+      border-radius: 5px;
+      padding: 3px 10px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: var(--copper);
+      color: white;
+    }
+
+    .copy-btn.copied {
+      background: #2D6A2D;
+      color: white;
+      border-color: #2D6A2D;
+    }
+
+    .code-content {
+      padding: 14px 16px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #2C2C3E;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    .code-comment {
+      color: #888;
+      font-style: italic;
+    }
+
+    /* ── EXAMPLE BOX ── */
+    .example-box {
+      border-left: 3px solid var(--copper-light);
+      background: rgba(184, 115, 51, 0.04);
+      padding: 12px 16px;
+      margin-top: 10px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    .example-label {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--copper);
+      margin-bottom: 5px;
+    }
+
+    .example-text {
+      font-family: 'Lora', serif;
+      font-style: italic;
+      font-size: 13px;
+      color: var(--ink-light);
+    }
+
+    /* ── TIP CALLOUT ── */
+    .tip-callout {
+      display: flex;
+      gap: 10px;
+      background: rgba(100, 100, 200, 0.05);
+      border: 1px solid rgba(100, 100, 200, 0.15);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 10px;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11.5px;
+      color: var(--ink-light);
+      line-height: 1.5;
+    }
+
+    .tip-callout .tip-icon {
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    /* ── WORKFLOW SECTION ── */
+    .workflow-card {
+      background: linear-gradient(135deg, #1C1C2E, #2E2E48);
+      border-radius: 12px;
+      padding: 28px 32px;
+      color: #E8E8F4;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .workflow-card::before {
+      content: '';
+      position: absolute;
+      top: -30px;
+      right: -30px;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(184, 115, 51, 0.15), transparent);
+    }
+
+    .workflow-card h3 {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: #F0C878;
+      margin-bottom: 16px;
+      letter-spacing: 0.02em;
+    }
+
+    .workflow-card .wf-code {
+      font-family: 'Courier New', monospace;
+      font-size: 12.5px;
+      line-height: 2;
+      color: #C8C8E8;
+      position: relative;
+      z-index: 1;
+    }
+
+    .workflow-card .wf-code .step-num {
+      color: #F0C878;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    .workflow-card .wf-code .wf-cmd {
+      color: #88DDAA;
+    }
+
+    .workflow-card .wf-code .wf-arg {
+      color: #FFB86C;
+    }
+
+    .workflow-card .wf-code .wf-comment {
+      color: #6677AA;
+      font-style: italic;
+    }
+
+    /* ── CHEAT SHEET ── */
+    .cheatsheet-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .cheat-chip {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 7px;
+      padding: 8px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .cheat-chip:hover {
+      background: rgba(184, 115, 51, 0.08);
+    }
+
+    .cheat-chip .cc-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--copper-light);
+      flex-shrink: 0;
+    }
+
+    /* ── FOOTER ── */
+    .page-footer {
+      margin-top: 80px;
+      padding-top: 28px;
+      border-top: 2px dashed var(--dot);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .footer-brand {
+      font-family: 'Playfair Display', serif;
+      font-size: 14px;
+      font-style: italic;
+      color: var(--ink-light);
+    }
+
+    .footer-notes-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      background: linear-gradient(135deg, #1C1C2E, #3A3A5C);
+      color: #F0C878;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      padding: 10px 20px;
+      border-radius: 8px;
+      transition: opacity 0.2s;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .footer-notes-link:hover {
+      opacity: 0.85;
+    }
+
+    .footer-notes-link .link-icon {
+      font-size: 14px;
+    }
+
+    .footer-copy {
+      width: 100%;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 10px;
+      color: var(--dot);
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    /* ── SCROLLBAR ── */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--dot);
+      border-radius: 3px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      :root {
+        --sidebar-w: 0px;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .main {
+        margin-left: var(--spiral-w);
+        padding: 32px 24px 60px 24px;
+      }
+    }
+
+    /* ── ENTRY ANIMATION ── */
+    .cmd-card {
+      opacity: 0;
+      transform: translateY(12px);
+      animation: fadeUp 0.4s ease forwards;
+    }
+
+    @keyframes fadeUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ── GIT GRAPH SPINE ── -->
+  <div class="spiral-spine" id="spiralSpine">
+    <canvas id="spiralCanvas"></canvas>
+    <div
+      style="position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:5px;z-index:2;">
+      <div style="width:7px;height:7px;border-radius:50%;background:#E8B455;box-shadow:0 0 6px rgba(232,180,85,0.8);">
+      </div>
+      <div style="width:6px;height:6px;border-radius:50%;background:#4DC4B0;box-shadow:0 0 6px rgba(77,196,176,0.7);">
+      </div>
+      <div style="width:6px;height:6px;border-radius:50%;background:#C46892;box-shadow:0 0 6px rgba(196,104,146,0.7);">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="nb-label">⎇ Git Reference</div>
+      <h1>Git Commands</h1>
+      <div class="sub">Krithika · CSE · 2025</div>
+    </div>
+    <div class="sidebar-section-title">Contents</div>
+    <ul class="sidebar-nav">
+      <li><a href="#setup"><span class="num">01</span> Setup & Config</a></li>
+      <li><a href="#repo"><span class="num">02</span> New Repository</a></li>
+      <li><a href="#staging"><span class="num">03–05</span> Status, Stage & Commit</a></li>
+      <li><a href="#history"><span class="num">06</span> View History</a></li>
+      <li><a href="#remote"><span class="num">07–08</span> GitHub Remote & Push</a></li>
+      <li><a href="#clone"><span class="num">09–11</span> Clone, Pull & Fetch</a></li>
+      <li><a href="#branch"><span class="num">12–14</span> Branching & Merge</a></li>
+      <li><a href="#undo"><span class="num">15–17</span> Undo Mistakes</a></li>
+      <li><a href="#tools"><span class="num">18–20</span> Stash, Diff & More</a></li>
+      <hr class="sidebar-divider" />
+      <li><a href="#workflows">✦ Daily Workflows</a></li>
+      <li><a href="#cheatsheet">✦ Quick Cheat Sheet</a></li>
+    </ul>
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <!-- PAGE HEADER -->
+    <header class="page-header">
+      <div class="eyebrow">✦ Version Control · Handwritten + Digital Notes</div>
+      <h1>Git <em>Commands</em></h1>
+      <p class="tagline">"Think of Git as a time machine for your code."</p>
+      <div class="meta-row">
+        <span class="meta-chip">20 Commands</span>
+        <span class="meta-chip">4 Scenarios</span>
+        <span class="meta-chip">Step-By-Step</span>
+        <span class="meta-chip">Beginner → Advanced</span>
+      </div>
+    </header>
+
+    <!-- ═══════════════ SETUP ═══════════════ -->
+    <section class="section-group" id="setup">
+      <div class="group-title">Setup & Configuration</div>
+
+      <div class="cmd-card" style="animation-delay:0.05s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 01</div>
+            <div class="cmd-title">Check Git Version</div>
+          </div>
+          <span class="cmd-tag tag-config">Config</span>
+        </div>
+        <p class="cmd-desc">Verify Git is installed on your system and check which version you're running. Always a good
+          first step before working on a new machine.</p>
+        <div class="where-run">Run from: Anywhere in terminal</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">git --version</div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">Expected Output</div>
+          <div class="example-text">git version 2.49.0 — any 2.x or higher is fine.</div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.1s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 02</div>
+            <div class="cmd-title">Configure Username & Email</div>
+          </div>
+          <span class="cmd-tag tag-config">Config · First Time Only</span>
+        </div>
+        <p class="cmd-desc">Git needs to know who you are before it records any commits. This is a one-time global setup
+          — your name and email appear in every commit you make across all repos.</p>
+        <div class="where-run">Run from: Anywhere (sets global config)</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Set your display name</span>
+            git config --global user.name "Krithika"
+
+            <span class="code-comment"># Set your email (match your GitHub account)</span>
+            git config --global user.email "yourmail@gmail.com"
+
+            <span class="code-comment"># Verify everything looks right</span>
+            git config --list
+          </div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">Why it matters</div>
+          <div class="example-text">Every commit is stamped with this identity. On team projects, teammates see your
+            name in git log.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ REPO ═══════════════ -->
+    <section class="section-group" id="repo">
+      <div class="group-title">Creating a Repository</div>
+
+      <div class="cmd-card" style="animation-delay:0.1s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 03</div>
+            <div class="cmd-title">git init — Start Tracking a Folder</div>
+          </div>
+          <span class="cmd-tag tag-basic">Essential</span>
+        </div>
+        <p class="cmd-desc">Initializes a brand-new Git repository in the current folder. Git creates a hidden
+          <code>.git/</code> subfolder that silently stores your entire version history.</p>
+        <div class="where-run">Run from: Inside your project folder</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># 1. Create project folder and enter it</span>
+            mkdir my-project
+            cd my-project
+
+            <span class="code-comment"># 2. Initialize Git here</span>
+            git init
+          </div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">Output you'll see</div>
+          <div class="example-text">Initialized empty Git repository in /my-project/.git/ — that .git/ folder is now
+            your time machine.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ STAGING ═══════════════ -->
+    <section class="section-group" id="staging">
+      <div class="group-title">Status, Staging & Committing</div>
+
+      <div class="cmd-card" style="animation-delay:0.1s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 04</div>
+            <div class="cmd-title">git status — What's Going On?</div>
+          </div>
+          <span class="cmd-tag tag-basic">Most Used</span>
+        </div>
+        <p class="cmd-desc">Your most-used command. Shows which files are modified, which are staged for commit, which
+          are new (untracked), and which have been deleted. Run this constantly — it's always safe.</p>
+        <div class="where-run">Run from: Inside any Git repo</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content">git status</div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">What you'll see</div>
+          <div class="example-text">Untracked files: app.py — meaning Git sees the file but isn't tracking it yet. Red =
+            not staged. Green = staged and ready to commit.</div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.12s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 05</div>
+            <div class="cmd-title">git add — Stage Your Changes</div>
+          </div>
+          <span class="cmd-tag tag-basic">Essential</span>
+        </div>
+        <p class="cmd-desc">Moves files into the staging area — a holding zone where you prepare exactly what goes into
+          the next snapshot. Think of it as packing a box before shipping it.</p>
+        <div class="where-run">Run from: Inside the Git repo</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Stage a single file</span>
+            git add app.py
+
+            <span class="code-comment"># Stage multiple specific files</span>
+            git add file1.py file2.py
+
+            <span class="code-comment"># Stage EVERYTHING changed (most common)</span>
+            git add .
+          </div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">Pro tip</div>
+          <div class="example-text">Use <em>git add .</em> when you're sure about all changes. Use specific filenames to
+            be selective — great for keeping unfinished work out of a commit.</div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.14s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 06</div>
+            <div class="cmd-title">git commit — Save a Snapshot</div>
+          </div>
+          <span class="cmd-tag tag-basic">Essential</span>
+        </div>
+        <p class="cmd-desc">A commit is a permanent snapshot of your staged changes. The message (<code>-m</code>) is
+          your note to future-you (and teammates) explaining what changed and why.</p>
+        <div class="where-run">Run from: Inside the Git repo, after staging</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Standard commit with a message</span>
+            git commit -m "Added login feature"
+
+            <span class="code-comment"># First-ever commit convention</span>
+            git commit -m "Initial project setup"
+          </div>
+        </div>
+        <div class="tip-callout">
+          <span class="tip-icon">💡</span>
+          Write commit messages in present tense: "Add login" not "Added login". It reads like "If applied, this commit
+          will Add login."
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ HISTORY ═══════════════ -->
+    <section class="section-group" id="history">
+      <div class="group-title">Viewing History</div>
+
+      <div class="cmd-card" style="animation-delay:0.1s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 07</div>
+            <div class="cmd-title">git log — Browse the Timeline</div>
+          </div>
+          <span class="cmd-tag tag-basic">Essential</span>
+        </div>
+        <p class="cmd-desc">Shows the full commit history with author, date, and message for every snapshot ever made.
+          Use the <code>--oneline</code> flag for a clean, condensed view that fits on screen.</p>
+        <div class="where-run">Run from: Inside any Git repo</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Full detailed history</span>
+            git log
+
+            <span class="code-comment"># Compact one-line view (preferred for quick scanning)</span>
+            git log --oneline
+          </div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">--oneline output looks like</div>
+          <div class="example-text">a1b2c3 Added login &nbsp;·&nbsp; d4e5f6 Initial commit — each line is a commit hash
+            + your message.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ REMOTE ═══════════════ -->
+    <section class="section-group" id="remote">
+      <div class="group-title">GitHub Remote & Pushing</div>
+
+      <div class="cmd-card" style="animation-delay:0.1s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 08</div>
+            <div class="cmd-title">Connect Local Repo to GitHub</div>
+          </div>
+          <span class="cmd-tag tag-remote">Remote</span>
+        </div>
+        <p class="cmd-desc">Links your local Git repo to a remote repository on GitHub. "origin" is just a nickname for
+          the URL — the convention everyone uses. Do this once per project.</p>
+        <div class="where-run">Run from: Inside your project folder, after git init</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Add remote (replace URL with your repo)</span>
+            git remote add origin https://github.com/Krithiikaa/my-project.git
+
+            <span class="code-comment"># Verify it was added correctly</span>
+            git remote -v
+          </div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">Before running this</div>
+          <div class="example-text">Create the repository on GitHub first (browser), then copy the .git URL from the
+            green Code button.</div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.12s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 09–10</div>
+            <div class="cmd-title">git push — Upload to GitHub</div>
+          </div>
+          <span class="cmd-tag tag-remote">Remote</span>
+        </div>
+        <p class="cmd-desc">Sends your local commits to GitHub. The first time you push, use <code>-u origin main</code>
+          to set up tracking. After that, plain <code>git push</code> is enough.</p>
+        <div class="where-run">Run from: Inside the repo, after committing</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># First push — sets upstream tracking</span>
+            git push -u origin main
+
+            <span class="code-comment"># If your branch is called "master" instead</span>
+            git push -u origin master
+
+            <span class="code-comment"># Every push after the first</span>
+            git push
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ CLONE / PULL / FETCH ═══════════════ -->
+    <section class="section-group" id="clone">
+      <div class="group-title">Clone, Pull & Fetch</div>
+
+      <div class="cmd-card" style="animation-delay:0.1s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 11</div>
+            <div class="cmd-title">git clone — Download a Repo</div>
+          </div>
+          <span class="cmd-tag tag-remote">Remote</span>
+        </div>
+        <p class="cmd-desc">Creates a full local copy of any GitHub repository. Better than downloading a ZIP — you get
+          the entire history and can push changes back.</p>
+        <div class="where-run">Run from: The parent folder where you want the project</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># General form</span>
+            git clone https://github.com/user/project.git
+
+            <span class="code-comment"># Real example — your hiring app</span>
+            git clone https://github.com/Krithiikaa/predictive-hiring-app.git
+          </div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">What happens</div>
+          <div class="example-text">Git creates a folder named predictive-hiring-app/ with all the code and history
+            inside. cd into it and start working.</div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.12s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 12–13</div>
+            <div class="cmd-title">git pull & git fetch — Stay Updated</div>
+          </div>
+          <span class="cmd-tag tag-collab">Team</span>
+        </div>
+        <p class="cmd-desc"><strong>git pull</strong> downloads your teammate's latest changes AND merges them into your
+          branch — it's a fetch + merge in one shot. <strong>git fetch</strong> only downloads, letting you review
+          before merging.</p>
+        <div class="where-run">Run from: Inside the repo on the branch you want to update</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Pull = fetch + merge (most common)</span>
+            git pull
+
+            <span class="code-comment"># Fetch only — download but don't merge yet</span>
+            git fetch
+
+            <span class="code-comment"># After fetch, you can compare before merging</span>
+            git merge origin/main
+          </div>
+        </div>
+        <div class="tip-callout">
+          <span class="tip-icon">⚡</span>
+          Always <em>git pull</em> before starting new work on a team project. This avoids nasty merge conflicts.
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ BRANCHING ═══════════════ -->
+    <section class="section-group" id="branch">
+      <div class="group-title">Branching & Merging</div>
+
+      <div class="cmd-card" style="animation-delay:0.1s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 14</div>
+            <div class="cmd-title">git branch — Create & View Branches</div>
+          </div>
+          <span class="cmd-tag tag-branch">Branching</span>
+        </div>
+        <p class="cmd-desc">Branches are parallel versions of your code. Create a new branch for each feature or bugfix
+          — it keeps main clean and your work isolated until it's ready.</p>
+        <div class="where-run">Run from: Inside the repo</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Create a new branch</span>
+            git branch login-feature
+
+            <span class="code-comment"># List all branches (* = current)</span>
+            git branch
+
+            <span class="code-comment"># Output:</span>
+            <span class="code-comment"># * main</span>
+            <span class="code-comment"># login-feature</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.12s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 15</div>
+            <div class="cmd-title">git switch / checkout — Change Branch</div>
+          </div>
+          <span class="cmd-tag tag-branch">Branching</span>
+        </div>
+        <p class="cmd-desc">Switches your working directory to a different branch. <code>git switch</code> is the modern
+          way (Git 2.23+); <code>git checkout</code> is the classic method that still works everywhere.</p>
+        <div class="where-run">Run from: Inside the repo</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Modern way (preferred)</span>
+            git switch login-feature
+
+            <span class="code-comment"># Classic way (still works)</span>
+            git checkout login-feature
+
+            <span class="code-comment"># Create AND switch in one command</span>
+            git switch -c chatbot-feature
+            git checkout -b chatbot-feature <span class="code-comment"># same thing</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.14s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 16–17</div>
+            <div class="cmd-title">git merge & git branch -d — Merge & Clean Up</div>
+          </div>
+          <span class="cmd-tag tag-branch">Branching</span>
+        </div>
+        <p class="cmd-desc">Merge brings a branch's commits into your current branch (usually main). After merging,
+          delete the branch to keep things tidy.</p>
+        <div class="where-run">Run from: The branch you want to merge INTO (usually main)</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Step 1: Go to main</span>
+            git switch main
+
+            <span class="code-comment"># Step 2: Bring in the feature branch</span>
+            git merge login-feature
+
+            <span class="code-comment"># Step 3: Delete the branch (work is done)</span>
+            git branch -d login-feature
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ UNDO ═══════════════ -->
+    <section class="section-group" id="undo">
+      <div class="group-title">Undoing Mistakes</div>
+
+      <div class="cmd-card" style="animation-delay:0.1s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 18</div>
+            <div class="cmd-title">git restore — Unstage or Discard</div>
+          </div>
+          <span class="cmd-tag tag-undo">Undo</span>
+        </div>
+        <p class="cmd-desc">Two rescue operations in one command. Unstage a file you added by mistake, or throw away
+          local edits entirely and restore the last committed version.</p>
+        <div class="where-run">Run from: Inside the repo</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Remove from staging (file stays edited)</span>
+            git restore --staged app.py
+
+            <span class="code-comment"># Throw away local changes (⚠️ permanent!)</span>
+            git restore app.py
+          </div>
+        </div>
+        <div class="tip-callout">
+          <span class="tip-icon">⚠️</span>
+          <code>git restore app.py</code> (without --staged) is <strong>destructive</strong> — your unsaved edits are
+          gone. Always double-check which form you need.
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.12s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 19</div>
+            <div class="cmd-title">git reset — Roll Back Commits</div>
+          </div>
+          <span class="cmd-tag tag-undo">Undo · Dangerous</span>
+        </div>
+        <p class="cmd-desc">Moves the branch pointer backwards in history. <code>--soft</code> keeps your file changes
+          (just undoes the commit). <code>--hard</code> nukes both the commit and all changes. Use hard with extreme
+          caution.</p>
+        <div class="where-run">Run from: Inside the repo</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Undo last commit, keep file changes</span>
+            git reset --soft HEAD~1
+
+            <span class="code-comment"># Undo last commit AND delete all changes (dangerous!)</span>
+            git reset --hard HEAD~1
+
+            <span class="code-comment"># HEAD~2 goes back 2 commits, HEAD~3 goes back 3, etc.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.14s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 20</div>
+            <div class="cmd-title">.gitignore — Hide Files from Git</div>
+          </div>
+          <span class="cmd-tag tag-basic">Essential</span>
+        </div>
+        <p class="cmd-desc">A plain text file that tells Git which files to never track. Crucial for keeping secrets
+          (API keys, passwords in .env), virtual environments, and compiled cache files out of your repository.</p>
+        <div class="where-run">Create in: Root of your project folder</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">.gitignore</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Python virtual environment</span>
+            venv/
+
+            <span class="code-comment"># Secret keys — NEVER commit this</span>
+            .env
+
+            <span class="code-comment"># Python cache</span>
+            __pycache__/
+            *.pyc
+
+            <span class="code-comment"># VS Code settings (optional)</span>
+            .vscode/
+          </div>
+        </div>
+        <div class="example-box">
+          <div class="example-label">For your FastAPI / Python projects</div>
+          <div class="example-text">Always add venv/ and .env to .gitignore before your very first commit. Once a secret
+            is committed, it's in history forever.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ TOOLS ═══════════════ -->
+    <section class="section-group" id="tools">
+      <div class="group-title">Stash, Diff & File Operations</div>
+
+      <div class="cmd-card" style="animation-delay:0.1s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 21</div>
+            <div class="cmd-title">git stash — Shelve Work Temporarily</div>
+          </div>
+          <span class="cmd-tag tag-basic">Handy</span>
+        </div>
+        <p class="cmd-desc">Saves your uncommitted changes to a hidden shelf so you can switch branches without losing
+          your in-progress work. Pop them back when you return.</p>
+        <div class="where-run">Run from: Inside the repo when you have uncommitted changes</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Shelve current work</span>
+            git stash
+
+            <span class="code-comment"># Do other work, switch branches, etc.</span>
+            git switch main
+
+            <span class="code-comment"># Come back and restore your stashed work</span>
+            git stash pop
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.12s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 22</div>
+            <div class="cmd-title">git diff — See What Changed</div>
+          </div>
+          <span class="cmd-tag tag-basic">Inspect</span>
+        </div>
+        <p class="cmd-desc">Shows the exact line-by-line differences between your working files and the last commit (or
+          staged area). Green lines are additions, red are deletions.</p>
+        <div class="where-run">Run from: Inside the repo</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Compare working files vs last commit</span>
+            git diff
+
+            <span class="code-comment"># Compare staged changes vs last commit</span>
+            git diff --staged
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-card" style="animation-delay:0.14s">
+        <div class="card-top">
+          <div>
+            <div class="cmd-number">Command 23–24</div>
+            <div class="cmd-title">git rm & git mv — Remove or Rename</div>
+          </div>
+          <span class="cmd-tag tag-basic">Files</span>
+        </div>
+        <p class="cmd-desc">Git-aware file operations. Using these instead of regular delete/rename means Git
+          automatically stages the change — no need for a separate <code>git add</code>.</p>
+        <div class="where-run">Run from: Inside the repo</div>
+        <div class="code-block-wrap">
+          <div class="code-header"><span class="code-lang">bash</span><button class="copy-btn"
+              onclick="copyCode(this)">Copy</button></div>
+          <div class="code-content"><span class="code-comment"># Delete a file and stage the deletion</span>
+            git rm app.py
+            git commit -m "Removed old app.py"
+
+            <span class="code-comment"># Rename a file (Git tracks it as a rename)</span>
+            git mv old_name.py new_name.py
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ WORKFLOWS ═══════════════ -->
+    <section class="section-group" id="workflows">
+      <div class="group-title">Scenario Workflows</div>
+
+      <div class="workflow-card">
+        <h3>Scenario 1 — Brand New Project</h3>
+        <div class="wf-code"><span class="step-num">①</span><span class="wf-cmd">mkdir</span> <span
+            class="wf-arg">project</span> <span class="wf-comment">&amp;&amp; cd project</span>
+          <span class="step-num">②</span><span class="wf-cmd">git init</span>
+          <span class="step-num">③</span><span class="wf-cmd">git add</span> <span class="wf-arg">.</span>
+          <span class="step-num">④</span><span class="wf-cmd">git commit</span> <span class="wf-arg">-m "Initial
+            commit"</span>
+          <span class="step-num">⑤</span><span class="wf-cmd">git remote add origin</span> <span
+            class="wf-arg">&lt;repo-url&gt;</span>
+          <span class="step-num">⑥</span><span class="wf-cmd">git push</span> <span class="wf-arg">-u origin main</span>
+        </div>
+      </div>
+
+      <div class="workflow-card" style="margin-top:16px">
+        <h3>Scenario 2 — Existing GitHub Project</h3>
+        <div class="wf-code"><span class="step-num">①</span><span class="wf-cmd">git clone</span> <span
+            class="wf-arg">&lt;repo-url&gt;</span>
+          <span class="step-num">②</span><span class="wf-cmd">cd</span> <span class="wf-arg">project</span>
+          <span class="step-num">③</span><span class="wf-cmd">git pull</span> <span class="wf-comment"> # get
+            latest</span>
+          <span class="step-num">④</span><span class="wf-cmd">git add</span> <span class="wf-arg">.</span>
+          <span class="step-num">⑤</span><span class="wf-cmd">git commit</span> <span class="wf-arg">-m "Updated
+            code"</span>
+          <span class="step-num">⑥</span><span class="wf-cmd">git push</span>
+        </div>
+      </div>
+
+      <div class="workflow-card" style="margin-top:16px">
+        <h3>Scenario 3 — Daily Team Workflow</h3>
+        <div class="wf-code"><span class="wf-comment"># — Before starting work —</span>
+          <span class="wf-cmd">git pull</span>
+
+          <span class="wf-comment"># — After writing code —</span>
+          <span class="wf-cmd">git add</span> <span class="wf-arg">.</span>
+          <span class="wf-cmd">git commit</span> <span class="wf-arg">-m "Implemented API endpoint"</span>
+          <span class="wf-cmd">git push</span>
+        </div>
+      </div>
+
+      <div class="workflow-card" style="margin-top:16px">
+        <h3>Scenario 4 — Feature Branch (Internship Standard)</h3>
+        <div class="wf-code"><span class="step-num">①</span><span class="wf-cmd">git switch</span> <span
+            class="wf-arg">-c chatbot-feature</span>
+          <span class="step-num">②</span><span class="wf-comment"> # ... write code ...</span>
+          <span class="step-num">③</span><span class="wf-cmd">git add</span> <span class="wf-arg">.</span>
+          <span class="step-num">④</span><span class="wf-cmd">git commit</span> <span class="wf-arg">-m "Added chatbot
+            module"</span>
+          <span class="step-num">⑤</span><span class="wf-cmd">git push origin</span> <span
+            class="wf-arg">chatbot-feature</span>
+          <span class="step-num">⑥</span><span class="wf-comment"> # Open Pull Request on GitHub ↗</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ CHEAT SHEET ═══════════════ -->
+    <section class="section-group" id="cheatsheet">
+      <div class="group-title">Quick Cheat Sheet — Internship Must-Knows</div>
+
+      <div class="cmd-card" style="animation-delay:0s">
+        <p class="cmd-desc" style="margin-bottom:4px">These <strong>10 commands</strong> cover roughly 90% of what
+          you'll use in real projects and internships. Tap any to copy.</p>
+        <div class="cheatsheet-grid" id="cheatGrid">
+          <div class="cheat-chip" onclick="copyChip(this, 'git clone')"><span class="cc-dot"></span>git clone</div>
+          <div class="cheat-chip" onclick="copyChip(this, 'git status')"><span class="cc-dot"></span>git status</div>
+          <div class="cheat-chip" onclick="copyChip(this, 'git add .')"><span class="cc-dot"></span>git add .</div>
+          <div class="cheat-chip" onclick="copyChip(this, 'git commit -m ""')"><span class="cc-dot"></span>git commit -m
+            ""</div>
+          <div class="cheat-chip" onclick="copyChip(this, 'git push')"><span class="cc-dot"></span>git push</div>
+          <div class="cheat-chip" onclick="copyChip(this, 'git pull')"><span class="cc-dot"></span>git pull</div>
+          <div class="cheat-chip" onclick="copyChip(this, 'git branch')"><span class="cc-dot"></span>git branch</div>
+          <div class="cheat-chip" onclick="copyChip(this, 'git switch -c feature')"><span class="cc-dot"></span>git
+            switch -c feature</div>
+          <div class="cheat-chip" onclick="copyChip(this, 'git merge branch-name')"><span class="cc-dot"></span>git
+            merge branch-name</div>
+          <div class="cheat-chip" onclick="copyChip(this, 'git log --oneline')"><span class="cc-dot"></span>git log
+            --oneline</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ FOOTER ═══════════════ -->
+    <footer class="page-footer">
+      <div class="footer-brand">Krithika's Git Notebook · CSE · 2025</div>
+      <a class="footer-notes-link"
+        href="https://drive.google.com/file/d/1iyP3cwQvaCTcUQtQ022E-O1iy-rm1IKo/view?usp=drivesdk" target="_blank"
+        rel="noopener">
+        <span class="link-icon">📓</span> View Handwritten Notes on Drive
+      </a>
+      <div class="footer-copy">Made with ♥ — Git is your best friend at every internship.</div>
+    </footer>
+
+  </main>
+
+  <script>
+    /* ── GIT GRAPH SPINE ── */
+    (function () {
+      const spine = document.getElementById('spiralSpine');
+      const canvas = document.getElementById('spiralCanvas');
+      const dpr = window.devicePixelRatio || 1;
+
+      /* Branch colours: main=amber, feature=teal, hotfix=rose */
+      const COLS = {
+        main: { line: '#C9943A', node: '#E8B455', glow: 'rgba(232,180,85,0.45)' },
+        feature: { line: '#3A9E8F', node: '#4DC4B0', glow: 'rgba(77,196,176,0.40)' },
+        hotfix: { line: '#9E4A6E', node: '#C46892', glow: 'rgba(196,104,146,0.38)' }
+      };
+
+      /* Static graph layout — x columns, y positions */
+      /* xMain=centre col, xFeat=right col, xFix=left col */
+      let W, H, xM, xF, xX, gap, nodes, animT = 0, raf;
+
+      function buildGraph() {
+        W = spine.offsetWidth;
+        H = spine.offsetHeight;
+        canvas.width = W * dpr;
+        canvas.height = H * dpr;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+
+        xM = Math.round(W * 0.50);   /* main branch x */
+        xF = Math.round(W * 0.80);   /* feature branch x */
+        xX = Math.round(W * 0.22);   /* hotfix branch x */
+        gap = 38;                     /* vertical spacing between commits */
+
+        /* Build repeating pattern of commits that tiles the full height */
+        /* Each node: { x, y, col, r } */
+        nodes = [];
+        const totalNodes = Math.ceil(H / gap) + 4;
+        const pattern = [
+          { col: 'main' },
+          { col: 'main' },
+          { col: 'feature' },   /* branch out right */
+          { col: 'feature' },
+          { col: 'main' },      /* merge back */
+          { col: 'main' },
+          { col: 'hotfix' },    /* branch out left */
+          { col: 'main' },      /* merge back */
+          { col: 'main' },
+          { col: 'feature' },
+          { col: 'main' },
+        ];
+        for (let i = 0; i < totalNodes; i++) {
+          const p = pattern[i % pattern.length];
+          const col = p.col;
+          const xPos = col === 'main' ? xM : col === 'feature' ? xF : xX;
+          nodes.push({ x: xPos, y: -gap + i * gap, col, r: col === 'main' ? 4.5 : 3.5 });
+        }
+      }
+
+      /* Draw curved bezier connector between two consecutive nodes */
+      function drawEdge(ctx, a, b, col) {
+        const c = COLS[col];
+        ctx.beginPath();
+        if (a.x === b.x) {
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+        } else {
+          /* diagonal branch out / merge in */
+          ctx.moveTo(a.x, a.y);
+          ctx.bezierCurveTo(a.x, a.y + gap * 0.55, b.x, b.y - gap * 0.55, b.x, b.y);
+        }
+        ctx.strokeStyle = c.line;
+        ctx.lineWidth = 1.6;
+        ctx.globalAlpha = 0.70;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+
+      function frame(ts) {
+        animT = ts * 0.0006;  /* slow drift speed */
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+
+        /* Scroll the graph slowly upward */
+        const scroll = (animT * 18) % gap;
+
+        ctx.save();
+        ctx.translate(0, scroll);
+
+        /* draw main trunk always visible */
+        ctx.beginPath();
+        ctx.moveTo(xM, -gap * 2);
+        ctx.lineTo(xM, H + gap * 2);
+        ctx.strokeStyle = COLS.main.line;
+        ctx.lineWidth = 1.4;
+        ctx.globalAlpha = 0.22;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+
+        /* draw edges between consecutive nodes */
+        for (let i = 0; i < nodes.length - 1; i++) {
+          const a = nodes[i], b = nodes[i + 1];
+          /* determine which colour the edge belongs to */
+          const edgeCol = (a.col === b.col) ? a.col : a.col;
+          drawEdge(ctx, a, b, edgeCol);
+        }
+
+        /* draw nodes */
+        for (let i = 0; i < nodes.length; i++) {
+          const n = nodes[i];
+          /* pulse each node individually */
+          const pulse = 0.5 + 0.5 * Math.sin(animT * 2.5 + i * 1.1);
+          const c = COLS[n.col];
+
+          /* glow */
+          const gr = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r * 4.5);
+          gr.addColorStop(0, c.glow);
+          gr.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r * 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = gr;
+          ctx.globalAlpha = 0.4 + pulse * 0.35;
+          ctx.fill();
+          ctx.globalAlpha = 1;
+
+          /* outer ring */
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r + 1.5, 0, Math.PI * 2);
+          ctx.strokeStyle = c.node;
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = 0.30 + pulse * 0.25;
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+
+          /* filled node */
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+          ctx.fillStyle = c.node;
+          ctx.fill();
+
+          /* inner highlight */
+          ctx.beginPath();
+          ctx.arc(n.x - n.r * 0.28, n.y - n.r * 0.28, n.r * 0.38, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.55)';
+          ctx.fill();
+        }
+
+        ctx.restore();
+        raf = requestAnimationFrame(frame);
+      }
+
+      function init() {
+        if (raf) cancelAnimationFrame(raf);
+        buildGraph();
+        raf = requestAnimationFrame(frame);
+      }
+
+      init();
+      window.addEventListener('resize', init);
+    })();
+
+    /* ── COPY CODE BLOCKS ── */
+    function copyCode(btn) {
+      const block = btn.closest('.code-block-wrap').querySelector('.code-content');
+      const text = block.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+      });
+    }
+
+    /* ── COPY CHEAT CHIPS ── */
+    function copyChip(el, text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = el.innerHTML;
+        el.innerHTML = '<span class="cc-dot" style="background:#2D6A2D"></span>✓ Copied!';
+        el.style.background = 'rgba(45,106,45,0.08)';
+        setTimeout(() => { el.innerHTML = orig; el.style.background = ''; }, 1400);
+      });
+    }
+
+    /* ── ACTIVE SIDEBAR LINK ── */
+    const sections = document.querySelectorAll('section[id], header[id]');
+    const links = document.querySelectorAll('.sidebar-nav a');
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const id = e.target.id;
+          links.forEach(l => {
+            l.classList.toggle('active', l.getAttribute('href') === '#' + id);
+          });
+        }
+      });
+    }, { threshold: 0.3 });
+    sections.forEach(s => obs.observe(s));
+
+    /* ── STAGGERED CARD ANIMATIONS ── */
+    const cards = document.querySelectorAll('.cmd-card');
+    const cardObs = new IntersectionObserver(entries => {
+      entries.forEach((e, i) => {
+        if (e.isIntersecting) {
+          e.target.style.animationPlayState = 'running';
+          cardObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    cards.forEach(c => {
+      c.style.animationPlayState = 'paused';
+      cardObs.observe(c);
+    });
+  </script>
+</body>
+
+</html>
